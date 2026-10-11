@@ -1,25 +1,25 @@
-# 🎬 Virtual Studio Pro[cite: 3]
+# 🎬 Virtual Studio Pro
 
 > **Real-time AI Background Remover & Custom Background Studio — entirely in your browser[cite: 3]. Zero installations, zero heavy ML python setup, pure lightning-fast web magic.**
  
 ---
 
 ### 🚀 Built By
-* **Astra Zomabter** ft **DYD**[cite: 3]
+* **Astra Zomabter** 
 
 ---
 
 ### ✨ Features
-* 🧠 **AI-Powered Selfie Segmentation:** Powered by Google MediaPipe right inside your browser via WebAssembly/CDNs[cite: 3].
-* 🎥 **Dual-Mode Input Support:** Switch seamlessly between your **live webcam** or **upload any pre-recorded video file** from your device gallery[cite: 3].
+* 🧠 **AI-Powered Selfie Segmentation:** Powered by Google MediaPipe right inside your browser via WebAssembly/CDNs.
+* 🎥 **Dual-Mode Input Support:** Switch seamlessly between your **live webcam** or **upload any pre-recorded video file** from your device gallery.
 * 🖼️ **Dynamic Background Swapping:** 
   * 🌁 Heavy Cinematic Blur
   * 🟢 Solid Green Screen Studio Mode
   * 📷 Custom Image Backgrounds
   * 🎞️ Looping Custom Video Backgrounds
-* 🎛️ **Smart Precision Controls:** Built-in video playback controls (Play/Pause/Rewind) so you can stage your background before rolling[cite: 3].
-* 🔴 **One-Click Record & Export:** Capture live sessions or processed clips instantly and download them directly as clean `.webm` video files[cite: 3].
-* 📉 **Temporal Noise Smoothing:** Frame-blending buffers to eliminate jitter and give you stable, clean outlines[cite: 3].
+* 🎛️ **Smart Precision Controls:** Built-in video playback controls (Play/Pause/Rewind) so you can stage your background before rolling.
+* 🔴 **One-Click Record & Export:** Capture live sessions or processed clips instantly and download them directly as clean `.webm` video files.
+* 📉 **Temporal Noise Smoothing:** Frame-blending buffers to eliminate jitter and give you stable, clean outlines.
 
 ---
 
