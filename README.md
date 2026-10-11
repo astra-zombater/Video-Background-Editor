@@ -9,6 +9,9 @@
 
 ---
 
+### 💻 Live Demo
+**https://videobgeditor.netlify.app**
+
 ### ✨ Features
 * 🧠 **AI-Powered Selfie Segmentation:** Powered by Google MediaPipe right inside your browser via WebAssembly/CDNs.
 * 🎥 **Dual-Mode Input Support:** Switch seamlessly between your **live webcam** or **upload any pre-recorded video file** from your device gallery.
