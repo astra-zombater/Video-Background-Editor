@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced AI Video & Background Studio Pro</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/selfie_segmentation.js" crossorigin="anonymous"></script>
+
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #121212;
+            color: #eeeeee;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1 { margin-bottom: 5px; color: #00d2ff; }
+        p.subtitle { margin-top: 0; color: #aaaaaa; font-size: 0.9rem; }
+
+        .container {
+            position: relative;
+            background: #000;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.7);
+            border: 2px solid #333;
+            line-height: 0;
+        }
+
+        canvas#output_canvas {
+            width: 640px;
+            height: 480px;
+            max-width: 100%;
+            height: auto;
+        }
+        canvas.mirrored {
+            transform: scaleX(-1);
+        }
+
+        video.input_video, video.bg_video_element { display: none; }
+
+        .controls {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+            max-width: 800px;
+        }
+
+        button, label.file-upload-label {
+            background-color: #222;
+            color: white;
+            border: 1px solid #444;
+            padding: 10px 16px;
+            font-size: 13px;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        button:hover, label.file-upload-label:hover {
+            background-color: #00d2ff;
+            color: #000;
+            border-color: #00d2ff;
+        }
+
+        button.active {
+            background-color: #00d2ff;
+            color: #000;
+            border-color: #00d2ff;
+        }
+
+        button#btn_record.recording {
+            background-color: #ff4d4d;
+            border-color: #ff4d4d;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        input[type="file"] { display: none; }
+        .control-group { display: flex; gap: 5px; align-items: center; background: #1e1e1e; padding: 5px; border-radius: 10px; }
+        
+        #video_playback_controls {
+            display: none; /* Only shows when an uploaded video is active */
+            gap: 5px;
+            align-items: center;
+            background: #1e1e1e;
+            padding: 5px;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Virtual Studio Pro</h1>
+    <p class="subtitle" style="color: #b84dff;">Made by Astra Zomabter ft DYD</p>
+
+    <div class="container">
+        <video class="input_video" playsinline muted></video>
+        <video class="bg_video_element" loop muted playsinline></video>
+        <canvas id="output_canvas" width="640" height="480" class="mirrored"></canvas>
+    </div>
+
+    <div class="controls">
+        <div class="control-group">
+            <button id="btn_webcam" onclick="useWebcam()" class="active">Webcam</button>
+            <label for="video_file_input" class="file-upload-label">📁 Upload Video</label>
+            <input type="file" id="video_file_input" accept="video/*">
+        </div>
+
+        <!-- Extra Play/Pause timeline tools visible only for uploaded source videos -->
+        <div id="video_playback_controls" class="control-group">
+            <button id="btn_play_pause" onclick="togglePlayPause()">▶️ Play Video</button>
+            <button onclick="restartVideo()">⏮️ Rewind</button>
+        </div>
+
+        <div class="control-group">
+            <button id="btn_original" onclick="setMode('original')">Original</button>
+            <button id="btn_blur" onclick="setMode('blur')" class="active">Blur</button>
+            <button id="btn_green" onclick="setMode('green')">Green Screen</button>
+            <label for="bg_file_input" class="file-upload-label">🖼️ Background (Img/Vid)</label>
+            <input type="file" id="bg_file_input" accept="image/*,video/*">
+        </div>
+
+        <div class="control-group">
+            <button id="btn_record" onclick="toggleRecording()">🔴 Start Recording</button>
+        </div>
+    </div>
+
+    <script>
+        const videoElement = document.querySelector('.input_video');
+        const bgVideoElement = document.querySelector('.bg_video_element');
+        const canvasElement = document.getElementById('output_canvas');
+        const canvasCtx = canvasElement.getContext('2d');
+        
+        const sourceFileInput = document.getElementById('video_file_input');
+        const bgFileInput = document.getElementById('bg_file_input');
+        const recordBtn = document.getElementById('btn_record');
+        const playPauseBtn = document.getElementById('btn_play_pause');
+        const playbackControlsUI = document.getElementById('video_playback_controls');
+
+        let currentMode = 'blur';
+        let customBgImage = null;
+        let customBgVideo = null;
+        let activeSource = 'webcam'; 
+
+        let mediaRecorder;
+        let recordedChunks = [];
+        let isRecording = false;
+
+        const maskCanvas = document.createElement('canvas');
+        maskCanvas.width = 640;
+        maskCanvas.height = 480;
+        const maskCtx = maskCanvas.getContext('2d', { willReadFrequently: true });
+        let previousMaskData = null;
+
+        function setMode(mode) {
+            currentMode = mode;
+            document.querySelectorAll('.controls button').forEach(btn => {
+                if(btn.id !== 'btn_webcam' && btn.id !== 'btn_record' && btn.id !== 'btn_play_pause') btn.classList.remove('active');
+            });
+            const activeBtn = document.getElementById(`btn_${mode}`);
+            if (activeBtn) activeBtn.classList.add('active');
+        }
+
+        // --- SOURCE VIDEO UPLOAD ---
+        sourceFileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const url = URL.createObjectURL(file);
+            
+            videoElement.pause();
+            videoElement.srcObject = null;
+            videoElement.src = url;
+            videoElement.loop = false; // Disable loop so we can catch when video ends naturally
+            videoElement.currentTime = 0;
+            
+            activeSource = 'file';
+            canvasElement.classList.remove('mirrored');
+            document.getElementById('btn_webcam').classList.remove('active');
+            playbackControlsUI.style.display = 'flex'; // Show playback controls
+            playPauseBtn.textContent = "▶️ Play Video";
+        });
+
+        function useWebcam() {
+            activeSource = 'webcam';
+            canvasElement.classList.add('mirrored');
+            document.getElementById('btn_webcam').classList.add('active');
+            playbackControlsUI.style.display = 'none'; // Hide timeline tools for live webcam
+            
+            navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } })
+                .then(stream => { 
+                    videoElement.srcObject = stream; 
+                    videoElement.src = "";
+                    videoElement.play(); 
+                })
+                .catch(err => alert("Webcam access denied or unavailable."));
+        }
+
+        function togglePlayPause() {
+            if (videoElement.paused) {
+                videoElement.play();
+                playPauseBtn.textContent = "⏸️ Pause Video";
+            } else {
+                videoElement.pause();
+                playPauseBtn.textContent = "▶️ Play Video";
+            }
+        }
+
+        function restartVideo() {
+            videoElement.currentTime = 0;
+            videoElement.pause();
+            playPauseBtn.textContent = "▶️ Play Video";
+            if (isRecording) stopRecording(); // Stop recording if user rewinds midway
+        }
+
+        // Automatically stop and download when uploaded video finishes playing
+        videoElement.onended = function() {
+            if (isRecording) {
+                stopRecording();
+            }
+            playPauseBtn.textContent = "▶️ Play Video";
+        };
+
+        // --- BACKGROUND UPLOAD ---
+        bgFileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const url = URL.createObjectURL(file);
+
+            if (file.type.startsWith('video/')) {
+                customBgImage = null;
+                bgVideoElement.src = url;
+                bgVideoElement.play();
+                customBgVideo = bgVideoElement;
+                setMode('bg_video');
+            } else {
+                customBgVideo = null;
+                const img = new Image();
+                img.onload = function() {
+                    customBgImage = img;
+                    setMode('image');
+                };
+                img.src = url;
+            }
+        });
+
+        // --- RECORDING FUNCTIONS ---
+        function toggleRecording() {
+            if (!isRecording) {
+                startRecording();
+            } else {
+                stopRecording();
+            }
+        }
+
+        function startRecording() {
+            recordedChunks = [];
+            const stream = canvasElement.captureStream(30);
+            
+            try {
+                mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm; codecs=vp9' });
+            } catch (e) {
+                try {
+                    mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+                } catch (err) {
+                    alert('Video recording not supported on this browser.');
+                    return;
+                }
+            }
+
+            mediaRecorder.ondataavailable = function(event) {
+                if (event.data && event.data.size > 0) {
+                    recordedChunks.push(event.data);
+                }
+            };
+
+            mediaRecorder.onstop = function() {
+                const blob = new Blob(recordedChunks, { type: 'video/webm' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                a.download = `edited-video-output-${Date.now()}.webm`;
+                document.body.appendChild(a);
+                a.click();
+                setTimeout(() => {
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(url);
+                }, 100);
+            };
+
+            mediaRecorder.start();
+            isRecording = true;
+            recordBtn.textContent = "⏹️ Stop & Download";
+            recordBtn.classList.add('recording');
+
+            // If an uploaded video is selected, automatically start playing it when recording starts for convenience!
+            if (activeSource === 'file' && videoElement.paused) {
+                videoElement.play();
+                playPauseBtn.textContent = "⏸️ Pause Video";
+            }
+        }
+
+        function stopRecording() {
+            if(mediaRecorder && mediaRecorder.state !== "inactive") {
+                mediaRecorder.stop();
+            }
+            isRecording = false;
+            recordBtn.textContent = "🔴 Start Recording";
+            recordBtn.classList.remove('recording');
+        }
+
+        // --- MEDIAPIPE INITIALIZATION ---
+        const selfieSegmentation = new SelfieSegmentation({
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}`
+        });
+
+        selfieSegmentation.setOptions({
+            modelSelection: 1,
+            selfieMode: false,
+        });
+
+        selfieSegmentation.onResults(onResults);
+
+        // --- RENDER PIPELINE ---
+        function onResults(results) {
+            canvasCtx.save();
+            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+
+            if (currentMode === 'original') {
+                canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+                canvasCtx.restore();
+                return;
+            }
+
+            maskCtx.clearRect(0, 0, maskCanvas.width, maskCanvas.height);
+            maskCtx.drawImage(results.segmentationMask, 0, 0, maskCanvas.width, maskCanvas.height);
+
+            if (previousMaskData) {
+                const currentData = maskCtx.getImageData(0, 0, maskCanvas.width, maskCanvas.height);
+                const prev = previousMaskData.data;
+                const curr = currentData.data;
+                for (let i = 0; i < curr.length; i += 4) {
+                    curr[i] = (curr[i] * 0.7) + (prev[i] * 0.3);
+                    curr[i+1] = curr[i];
+                    curr[i+2] = curr[i];
+                }
+                maskCtx.putImageData(currentData, 0, 0);
+                previousMaskData = currentData;
+            } else {
+                previousMaskData = maskCtx.getImageData(0, 0, maskCanvas.width, maskCanvas.height);
+            }
+
+            canvasCtx.drawImage(maskCanvas, 0, 0, canvasElement.width, canvasElement.height);
+            canvasCtx.globalCompositeOperation = 'source-in';
+            canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+
+            canvasCtx.globalCompositeOperation = 'destination-over';
+
+            if (currentMode === 'green') {
+                canvasCtx.fillStyle = '#00FF00';
+                canvasCtx.fillRect(0, 0, canvasElement.width, canvasElement.height);
+            } else if (currentMode === 'image' && customBgImage) {
+                canvasCtx.drawImage(customBgImage, 0, 0, canvasElement.width, canvasElement.height);
+            } else if (currentMode === 'bg_video' && customBgVideo) {
+                canvasCtx.drawImage(customBgVideo, 0, 0, canvasElement.width, canvasElement.height);
+            } else {
+                canvasCtx.filter = 'blur(18px)';
+                canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+                canvasCtx.filter = 'none';
+            }
+
+            canvasCtx.restore();
+        }
+
+        async function frameProcessorLoop() {
+            if (videoElement.readyState >= 2 && !videoElement.paused && !videoElement.ended) {
+                await selfieSegmentation.send({ image: videoElement });
+            }
+            requestAnimationFrame(frameProcessorLoop);
+        }
+
+        useWebcam();
+        frameProcessorLoop();
+    </script>
+</body>
+</html>
