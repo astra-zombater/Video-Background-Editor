@@ -1,7 +1,7 @@
 # 🎬 Virtual Studio Pro[cite: 3]
 
 > **Real-time AI Background Remover & Custom Background Studio — entirely in your browser[cite: 3]. Zero installations, zero heavy ML python setup, pure lightning-fast web magic.**
-
+ 
 ---
 
 ### 🚀 Built By
