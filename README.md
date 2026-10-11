@@ -10,7 +10,11 @@
 ---
 
 ### 💻 Live Demo
-**https://videobgeditor.netlify.app**
+
+#1 : **https://videobgeditor.netlify.app**
+#2 : **https://astra-zombater.github.io/Video-Background-Editor/**
+
+---
 
 ### ✨ Features
 * 🧠 **AI-Powered Selfie Segmentation:** Powered by Google MediaPipe right inside your browser via WebAssembly/CDNs.
