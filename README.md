@@ -11,7 +11,8 @@
 
 ### 💻 Live Demo
 
-#1 : **https://videobgeditor.netlify.app**
+#1 : **https://videobgeditor.netlify.app**.
+
 #2 : **https://astra-zombater.github.io/Video-Background-Editor/**
 
 ---
